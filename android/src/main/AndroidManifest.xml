@@ -1,4 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-          package="com.reactnativegooglecloudspeechtotext">
+  xmlns:tools="http://schemas.android.com/tools"
+  package="com.reactnativegooglecloudspeechtotext">
 
+  <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+
+  <application
+    android:supportsRtl="true"
+    tools:ignore="GoogleAppIndexingWarning">
+    <service android:name=".speech_service.SpeechService"/>
+  </application>
 </manifest>
