@@ -7,6 +7,7 @@
   <application
     android:supportsRtl="true"
     tools:ignore="GoogleAppIndexingWarning">
-    <service android:name=".speech_service.SpeechService"/>
+    <service android:name=".SpeechService"/>
   </application>
+
 </manifest>

@@ -1,13 +1,38 @@
 import { NativeModules } from 'react-native';
 
-type GoogleCloudSpeechToTextType = {
-  init(apiKey: string, languageCode: string): Promise<void>;
-  multiply(a: number, b: number): Promise<number>;
-  setApiKey(key: string): Promise<void>;
-  start(): Promise<void>;
-  stop(): Promise<void>;
-};
+export interface VoiceStartEvent {
+  sampleRate: number;
+  state: number;
+}
+
+export interface VoiceEvent {
+  size: number;
+}
+
+export interface SpeechEvent {
+  success: boolean;
+  messages?: string;
+}
+
+export interface SpeechRecognizedEvent {
+  isFinal: boolean;
+  transcript: string;
+}
+
+interface GoogleCloudSpeechToTextModule {
+  start(): Promise<SpeechEvent>;
+
+  stop(): Promise<SpeechEvent>;
+
+  onVoiceStart(fn: (data: VoiceStartEvent) => void): Promise<void>;
+
+  onVoice(fn: (data: VoiceEvent) => void): Promise<void>;
+
+  onVoiceEnd(fn: () => void): Promise<void>;
+
+  onSpeechRecognized(fn: (data: SpeechRecognizedEvent) => void): Promise<void>;
+}
 
 const { GoogleCloudSpeechToText } = NativeModules;
 
-export default GoogleCloudSpeechToText as GoogleCloudSpeechToTextType;
+export default GoogleCloudSpeechToText as GoogleCloudSpeechToTextModule;

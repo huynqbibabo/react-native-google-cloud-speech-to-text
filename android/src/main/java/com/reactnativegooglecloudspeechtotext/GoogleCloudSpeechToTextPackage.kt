@@ -10,11 +10,11 @@ import com.facebook.react.uimanager.ViewManager
 import com.facebook.react.bridge.JavaScriptModule
 
 class GoogleCloudSpeechToTextPackage : ReactPackage {
-    override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
-        return Arrays.asList<NativeModule>(GoogleCloudSpeechToTextModule(reactContext))
-    }
+  override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
+    return Arrays.asList<NativeModule>(GoogleCloudSpeechToTextModule(reactContext))
+  }
 
-    override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> {
-        return emptyList<ViewManager<*, *>>()
-    }
+  override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> {
+    return emptyList<ViewManager<*, *>>()
+  }
 }
