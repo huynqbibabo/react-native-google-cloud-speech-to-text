@@ -119,7 +119,8 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
         val params = Arguments.createMap()
         params.putInt("sampleRate", mVoiceRecorder!!.sampleRate)
         params.putInt("state", mVoiceRecorder!!.state)
-        voiceStartJSCallback?.invoke(params)
+        sendJSEvent(reactApplicationContext, "onVoiceStart", params)
+        // voiceStartJSCallback?.invoke(params)
 
         mSpeechService?.startRecognizing(mVoiceRecorder!!.sampleRate)
       }
@@ -131,7 +132,8 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
       if (mSpeechService != null) {
         val params = Arguments.createMap()
         params.putInt("size", size)
-        voiceChangeJSCallback?.invoke(params)
+        sendJSEvent(reactApplicationContext, "onVoice", params)
+        // voiceChangeJSCallback?.invoke(params)
 
         mSpeechService?.recognize(data, size)
       }
@@ -141,8 +143,9 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
       Log.i(TAG, "onVoiceEnd: ")
       // TODO: send JS voice end event
       if (mSpeechService != null) {
-        // val params = Arguments.createMap()
-        voiceEndJSCallback?.invoke()
+         val params = Arguments.createMap()
+        // voiceEndJSCallback?.invoke()
+        sendJSEvent(reactApplicationContext, "onVoiceEnd", params)
 
         mSpeechService?.finishRecognizing()
       }
@@ -151,18 +154,19 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
 
   private val mServiceConnection: ServiceConnection = object : ServiceConnection {
     override fun onServiceConnected(componentName: ComponentName, binder: IBinder) {
-      Log.i(TAG, "onServiceConnected: ")
+      Log.i(TAG, "ServiceConnected: ")
       mSpeechService = SpeechService.from(binder)
       mSpeechService?.addListener(mSpeechServiceListener)
     }
 
     override fun onServiceDisconnected(componentName: ComponentName) {
+      Log.i(TAG, "ServiceDisconnected: ")
       mSpeechService = null
     }
   }
 
   private fun startVoiceRecorder() {
-    Log.i(TAG, "startVoiceRecorder: ")
+    Log.i(TAG, "StartVoiceRecorder: ")
     if (mVoiceRecorder != null) {
       mVoiceRecorder?.stop()
     }
@@ -172,6 +176,7 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
 
   private fun stopVoiceRecorder() {
     if (mVoiceRecorder != null) {
+      Log.i(TAG, "StopVoiceRecorder: ")
       mVoiceRecorder?.stop()
       mVoiceRecorder = null
     }
@@ -184,7 +189,8 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
         mVoiceRecorder?.dismiss()
         val params = Arguments.createMap()
         params.putString("transcript", text)
-        speechRecognizedJSCallback?.invoke(params)
+        sendJSEvent(reactApplicationContext, "onSpeechRecognized", params)
+        // speechRecognizedJSCallback?.invoke(params)
       }
     }
   }
