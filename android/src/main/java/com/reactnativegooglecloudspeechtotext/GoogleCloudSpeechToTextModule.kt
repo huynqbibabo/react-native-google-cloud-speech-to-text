@@ -1,14 +1,13 @@
 package com.reactnativegooglecloudspeechtotext
 
-import android.Manifest
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
-import android.content.pm.PackageManager
+import android.content.res.Resources
 import android.os.IBinder
 import android.util.Log
-import androidx.core.app.ActivityCompat
+import android.util.TypedValue.TYPE_STRING
 import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule.RCTDeviceEventEmitter
 
@@ -29,37 +28,28 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
   private var voiceChangeJSCallback: Callback? = null
   private var voiceEndJSCallback: Callback? = null
   private var speechRecognizedJSCallback: Callback? = null
+  private var apiKey: String = "";
 
   override fun getName(): String {
     return TAG
   }
 
-  // See https://facebook.github.io/react-native/docs/native-modules-android
+  public fun setApiKey(key: String ) {
+    Log.i(TAG, "setApiKey: $key")
+    apiKey = key
+  }
 
   @ReactMethod
   fun start(promise: Promise) {
     Log.i(TAG, "start: ")
     if (speechService == null) {
       // Start listening to voices
-      when {
-        ActivityCompat.checkSelfPermission(reactApplicationContext, Manifest.permission.RECORD_AUDIO)
-          == PackageManager.PERMISSION_GRANTED -> {
-          Log.i(TAG, "PERMISSION_GRANTED")
+      val serviceIntent = Intent(reactApplicationContext, SpeechService::class.java)
+      reactApplicationContext.bindService(serviceIntent, mServiceConnection, Context.BIND_AUTO_CREATE)
 
-          val serviceIntent = Intent(reactApplicationContext, SpeechService::class.java)
-          reactApplicationContext.bindService(serviceIntent, mServiceConnection, Context.BIND_AUTO_CREATE)
+      startVoiceRecorder()
+      promise.resolve(true)
 
-          startVoiceRecorder()
-          promise.resolve(true)
-        }
-        else -> {
-          promise.reject(ERROR_CODE, "AUDIO_PERMISSION_REQUIRED")
-//          reactApplicationContext.currentActivity?.let {
-//            ActivityCompat.requestPermissions(it, arrayOf(Manifest.permission.RECORD_AUDIO),
-//              REQUEST_RECORD_AUDIO_PERMISSION)
-//          }
-        }
-      }
     } else {
       promise.reject(ERROR_CODE, "Unknow error!")
     }
@@ -80,14 +70,17 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
   fun onVoiceStart(fn: Callback) {
     voiceStartJSCallback = fn
   }
+
   @ReactMethod
   fun onVoice(fn: Callback) {
     voiceChangeJSCallback = fn
   }
+
   @ReactMethod
   fun onVoiceEnd(fn: Callback) {
     voiceEndJSCallback = fn
   }
+
   @ReactMethod
   fun onSpeechRecognized(fn: Callback) {
     speechRecognizedJSCallback = fn
@@ -122,7 +115,7 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
         sendJSEvent(reactApplicationContext, "onVoiceStart", params)
         // voiceStartJSCallback?.invoke(params)
 
-        mSpeechService?.startRecognizing(mVoiceRecorder!!.sampleRate)
+        mSpeechService?.startRecognizing(mVoiceRecorder!!.sampleRate, apiKey)
       }
     }
 
@@ -143,7 +136,7 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
       Log.i(TAG, "onVoiceEnd: ")
       // TODO: send JS voice end event
       if (mSpeechService != null) {
-         val params = Arguments.createMap()
+        val params = Arguments.createMap()
         // voiceEndJSCallback?.invoke()
         sendJSEvent(reactApplicationContext, "onVoiceEnd", params)
 

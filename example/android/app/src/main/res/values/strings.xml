@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">GoogleCloudSpeechToText Example</string>
+    <string moduleConfig="true" name="test_string" translatable="false">APi key</string>
 </resources>
