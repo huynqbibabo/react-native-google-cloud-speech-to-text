@@ -35,7 +35,10 @@
     "ios",
     "android"
   ],
-  "repository": "https://github.com/huynqbibabo/react-native-google-cloud-speech-to-text",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/huynqbibabo/react-native-google-cloud-speech-to-text.git"
+  },
   "author": "Quang Huy <huynq@bibabo.vn> (https://github.com/huynqbibabo)",
   "license": "MIT",
   "bugs": {
@@ -120,7 +123,10 @@
       ]
     }
   },
-  "eslintIgnore": ["node_modules/", "lib/"],
+  "eslintIgnore": [
+    "node_modules/",
+    "lib/"
+  ],
   "prettier": {
     "quoteProps": "consistent",
     "singleQuote": true,
