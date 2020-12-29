@@ -61,6 +61,11 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
   @ReactMethod
   fun stop() {
     stopVoiceRecorder()
+  }
+
+  @ReactMethod
+  fun destroy() {
+    stopVoiceRecorder()
     // Stop Cloud Speech API
     if (mSpeechService !== null) {
       mSpeechService?.removeListener(mSpeechServiceListener)

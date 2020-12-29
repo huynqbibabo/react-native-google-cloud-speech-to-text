@@ -77,7 +77,7 @@ class GCSpeechToText {
       this._listeners = null;
     }
     this._listeners = null;
-    await GoogleCloudSpeechToText.stop();
+    await GoogleCloudSpeechToText.destroy();
   }
 
   onSpeechStart(fn: (data: SpeechStartEvent) => void) {
