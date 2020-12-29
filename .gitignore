@@ -60,3 +60,5 @@ android/keystores/debug.keystore
 lib/
 
 android/src/main/res/raw/credential.json
+
+example/android/app/google-services.json

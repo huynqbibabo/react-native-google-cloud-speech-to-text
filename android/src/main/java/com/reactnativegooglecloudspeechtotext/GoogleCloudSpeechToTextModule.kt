@@ -4,86 +4,72 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
-import android.content.res.Resources
 import android.os.IBinder
 import android.util.Log
-import android.util.TypedValue.TYPE_STRING
 import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule.RCTDeviceEventEmitter
 
 class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
   private val TAG = "GoogleCloudSpeechToText";
-
-  private val SUCCESS_CODE = "1";
-  private val ERROR_CODE = "0";
-
-
   private var mSpeechService: SpeechService? = null
-
   private var mVoiceRecorder: VoiceRecorder? = null
-
   private var speechService: SpeechService? = null
-
-  private var voiceStartJSCallback: Callback? = null
-  private var voiceChangeJSCallback: Callback? = null
-  private var voiceEndJSCallback: Callback? = null
-  private var speechRecognizedJSCallback: Callback? = null
   private var apiKey: String = "";
+  private var serviceConnected = false;
+
+  object ErrorCode {
+    const val Unknown = "-1"
+    const val None = "0"
+    const val PermissionDenied = "1"
+    const val ApiKeyMissing = "2"
+  }
 
   override fun getName(): String {
     return TAG
   }
 
-  public fun setApiKey(key: String ) {
-    Log.i(TAG, "setApiKey: $key")
-    apiKey = key
+  @ReactMethod
+  fun setApiKey(apiKey: String) {
+    Log.i(TAG, "setApiKey")
+    this.apiKey = apiKey
   }
 
   @ReactMethod
   fun start(promise: Promise) {
-    Log.i(TAG, "start: ")
-    if (speechService == null) {
-      // Start listening to voices
-      val serviceIntent = Intent(reactApplicationContext, SpeechService::class.java)
-      reactApplicationContext.bindService(serviceIntent, mServiceConnection, Context.BIND_AUTO_CREATE)
+    try {
+      if (speechService == null) {
+        // Start listening to voices
+        if (apiKey === "" ) {
+          val keyId = reactApplicationContext.resources.getIdentifier("google_api_key", "string", reactApplicationContext.packageName)
+          apiKey = reactApplicationContext.resources.getString(keyId)
+        }
+        val serviceIntent = Intent(reactApplicationContext, SpeechService::class.java)
+        reactApplicationContext.bindService(serviceIntent, mServiceConnection, Context.BIND_AUTO_CREATE)
+        serviceConnected = true
+        startVoiceRecorder()
+        promise.resolve(ErrorCode.None)
 
-      startVoiceRecorder()
-      promise.resolve(true)
-
-    } else {
-      promise.reject(ERROR_CODE, "Unknow error!")
+      } else {
+        promise.reject(ErrorCode.Unknown, "Another instance of SpeechService is already running")
+      }
+    } catch (e: Exception) {
+      handleErrorEvent(e)
+      promise.reject(ErrorCode.Unknown, e.message)
     }
   }
 
   @ReactMethod
   fun stop() {
-    Log.i(TAG, "stop: ")
     stopVoiceRecorder()
-
     // Stop Cloud Speech API
-    mSpeechService?.removeListener(mSpeechServiceListener)
-    reactApplicationContext.unbindService(mServiceConnection)
-    mSpeechService = null
-  }
-
-  @ReactMethod
-  fun onVoiceStart(fn: Callback) {
-    voiceStartJSCallback = fn
-  }
-
-  @ReactMethod
-  fun onVoice(fn: Callback) {
-    voiceChangeJSCallback = fn
-  }
-
-  @ReactMethod
-  fun onVoiceEnd(fn: Callback) {
-    voiceEndJSCallback = fn
-  }
-
-  @ReactMethod
-  fun onSpeechRecognized(fn: Callback) {
-    speechRecognizedJSCallback = fn
+    if (mSpeechService !== null) {
+      mSpeechService?.removeListener(mSpeechServiceListener)
+      mSpeechService = null
+    }
+    if (serviceConnected) {
+      reactApplicationContext.unbindService(mServiceConnection)
+      serviceConnected = false
+    }
   }
 
   private fun handleErrorEvent(throwable: Throwable) {
@@ -93,7 +79,7 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
   private fun sendJSErrorEvent(message: String?) {
     val params = Arguments.createMap()
     params.putString("message", message)
-    sendJSEvent(reactApplicationContext, "onSpeechRecognizedError", params)
+    sendJSEvent(reactApplicationContext, "onSpeechError", params)
   }
 
   private fun sendJSEvent(reactContext: ReactContext,
@@ -106,41 +92,34 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
 
   private val mVoiceCallback: VoiceRecorder.Callback = object : VoiceRecorder.Callback() {
     override fun onVoiceStart() {
-      // TODO: send JS voice start event
       Log.i(TAG, "onVoiceStart: ")
       if (mSpeechService != null) {
         val params = Arguments.createMap()
         params.putInt("sampleRate", mVoiceRecorder!!.sampleRate)
         params.putInt("state", mVoiceRecorder!!.state)
-        sendJSEvent(reactApplicationContext, "onVoiceStart", params)
-        // voiceStartJSCallback?.invoke(params)
-
         mSpeechService?.startRecognizing(mVoiceRecorder!!.sampleRate, apiKey)
+
+        sendJSEvent(reactApplicationContext, "onSpeechStart", params)
       }
     }
 
     override fun onVoice(data: ByteArray?, size: Int) {
       Log.i(TAG, "onVoice: ")
-      // TODO: send JS voice event
       if (mSpeechService != null) {
         val params = Arguments.createMap()
         params.putInt("size", size)
-        sendJSEvent(reactApplicationContext, "onVoice", params)
-        // voiceChangeJSCallback?.invoke(params)
-
         mSpeechService?.recognize(data, size)
+
+//        sendJSEvent(reactApplicationContext, "onSpeech", params)
       }
     }
 
     override fun onVoiceEnd() {
       Log.i(TAG, "onVoiceEnd: ")
-      // TODO: send JS voice end event
       if (mSpeechService != null) {
         val params = Arguments.createMap()
-        // voiceEndJSCallback?.invoke()
-        sendJSEvent(reactApplicationContext, "onVoiceEnd", params)
-
         mSpeechService?.finishRecognizing()
+        sendJSEvent(reactApplicationContext, "onVoiceEnd", params)
       }
     }
   }
@@ -169,22 +148,19 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
 
   private fun stopVoiceRecorder() {
     if (mVoiceRecorder != null) {
-      Log.i(TAG, "StopVoiceRecorder: ")
       mVoiceRecorder?.stop()
       mVoiceRecorder = null
     }
   }
 
-  private val mSpeechServiceListener: SpeechService.Listener = object : SpeechService.Listener {
-    override fun onSpeechRecognized(text: String?, isFinal: Boolean) {
-      Log.i(TAG, text)
-      if (isFinal) {
-        mVoiceRecorder?.dismiss()
-        val params = Arguments.createMap()
-        params.putString("transcript", text)
-        sendJSEvent(reactApplicationContext, "onSpeechRecognized", params)
-        // speechRecognizedJSCallback?.invoke(params)
-      }
+  private val mSpeechServiceListener: SpeechService.Listener = SpeechService.Listener { text, isFinal ->
+    Log.i(TAG, "onSpeechRecognized: $text")
+    if (isFinal) {
+      mVoiceRecorder?.dismiss()
+      val params = Arguments.createMap()
+      params.putString("transcript", text)
+      params.putBoolean("isFinal", isFinal)
+      sendJSEvent(reactApplicationContext, "onSpeechRecognized", params)
     }
   }
 

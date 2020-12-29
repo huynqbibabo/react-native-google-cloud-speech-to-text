@@ -9,8 +9,9 @@ import {
 } from 'react-native';
 import GoogleCloudSpeechToText, {
   SpeechRecognizedEvent,
-  VoiceEvent,
-  VoiceStartEvent,
+  OnSpeechEvent,
+  SpeechStartEvent,
+  SpeechErrorEvent,
 } from 'react-native-google-cloud-speech-to-text';
 import { useEffect } from 'react';
 
@@ -32,36 +33,35 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    GoogleCloudSpeechToText.onSpeech(onSpeech);
+    GoogleCloudSpeechToText.onSpeechStart(onSpeechStart);
+    GoogleCloudSpeechToText.onSpeechEnd(onSpeechEnd);
+    GoogleCloudSpeechToText.onSpeechError(onSpeechError);
     GoogleCloudSpeechToText.onSpeechRecognized(onSpeechRecognized);
+    return () => {
+      GoogleCloudSpeechToText.removeListeners();
+    };
   }, []);
 
   const onSpeechRecognized = (result: SpeechRecognizedEvent) => {
-    // console.log(result);
+    console.log(result);
     setResult(result.transcript);
   };
 
-  useEffect(() => {
-    GoogleCloudSpeechToText.onVoiceStart(onVoiceStart);
-  }, []);
-
-  const onVoiceStart = (_event: VoiceStartEvent) => {
-    // console.log('onVoiceStart', event);
+  const onSpeechStart = (_event: SpeechStartEvent) => {
+    console.log('onSpeechStart', _event);
   };
 
-  useEffect(() => {
-    GoogleCloudSpeechToText.onVoice(onVoice);
-  }, []);
-
-  const onVoice = (_event: VoiceEvent) => {
-    // console.log('onVoice', event);
+  const onSpeech = (_event: OnSpeechEvent) => {
+    console.log('onSpeech', _event);
   };
 
-  useEffect(() => {
-    GoogleCloudSpeechToText.onVoiceEnd(onVoiceEnd);
-  }, []);
+  const onSpeechEnd = () => {
+    console.log('onSpeechEnd: ');
+  };
 
-  const onVoiceEnd = () => {
-    // console.log('onVoiceEnd');
+  const onSpeechError = (_error: SpeechErrorEvent) => {
+    console.log('onSpeechError: ', _error);
   };
 
   const startRecognizing = () => {
