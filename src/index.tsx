@@ -67,8 +67,8 @@ class GCSpeechToText {
     await GoogleCloudSpeechToText.stop();
   }
 
-  async setApiKey(apiKey: string): Promise<void> {
-    await GoogleCloudSpeechToText.setApiKey(apiKey);
+  setApiKey(apiKey: string): void {
+    GoogleCloudSpeechToText.setApiKey(apiKey);
   }
 
   async removeListeners(): Promise<void> {

@@ -33,6 +33,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    GoogleCloudSpeechToText.setApiKey('key_____');
     GoogleCloudSpeechToText.onSpeech(onSpeech);
     GoogleCloudSpeechToText.onSpeechStart(onSpeechStart);
     GoogleCloudSpeechToText.onSpeechEnd(onSpeechEnd);

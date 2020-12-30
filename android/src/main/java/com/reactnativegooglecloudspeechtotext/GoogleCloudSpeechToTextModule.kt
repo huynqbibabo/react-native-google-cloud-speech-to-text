@@ -29,9 +29,9 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
   }
 
   @ReactMethod
-  fun setApiKey(apiKey: String) {
-    Log.i(TAG, "setApiKey")
-    this.apiKey = apiKey
+  fun setApiKey(key: String) {
+    Log.i(TAG, "setApiKey: $key")
+    apiKey = key
   }
 
   @ReactMethod
@@ -40,8 +40,8 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
       if (speechService == null) {
         // Start listening to voices
         if (apiKey === "" ) {
-          val keyId = reactApplicationContext.resources.getIdentifier("google_api_key", "string", reactApplicationContext.packageName)
-          apiKey = reactApplicationContext.resources.getString(keyId)
+//          val keyId = reactApplicationContext.resources.getIdentifier("google_api_key", "string", reactApplicationContext.packageName)
+//          apiKey = reactApplicationContext.resources.getString(keyId)
         }
         val serviceIntent = Intent(reactApplicationContext, SpeechService::class.java)
         reactApplicationContext.bindService(serviceIntent, mServiceConnection, Context.BIND_AUTO_CREATE)
