@@ -1,6 +1,6 @@
 {
   "name": "@bibabovn/react-native-google-cloud-speech-to-text",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Google cloud speech to text streaming GRPC module",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",
