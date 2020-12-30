@@ -1,6 +1,6 @@
 {
   "name": "@bibabovn/react-native-google-cloud-speech-to-text",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Google cloud speech to text streaming GRPC module",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",
@@ -137,6 +137,10 @@
   "@react-native-community/bob": {
     "source": "src",
     "output": "lib",
-    "targets": ["commonjs", "module", "typescript"]
+    "targets": [
+      "commonjs",
+      "module",
+      "typescript"
+    ]
   }
 }
