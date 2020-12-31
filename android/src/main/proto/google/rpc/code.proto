@@ -1,4 +1,4 @@
-// Copyright (c) 2015, Google Inc.
+// Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,17 +16,14 @@ syntax = "proto3";
 
 package google.rpc;
 
+option go_package = "google.golang.org/genproto/googleapis/rpc/code;code";
 option java_multiple_files = true;
 option java_outer_classname = "CodeProto";
 option java_package = "com.google.rpc";
+option objc_class_prefix = "RPC";
 
-
-// The canonical error codes for Google APIs.
-// Warnings:
+// The canonical error codes for gRPC APIs.
 //
-// -   Do not change any numeric assignments.
-// -   Changes to this list should be made only if there is a compelling
-//     need that can't be satisfied in another way.
 //
 // Sometimes multiple error codes may apply.  Services should return
 // the most specific error code that applies.  For example, prefer
@@ -70,8 +67,12 @@ enum Code {
   DEADLINE_EXCEEDED = 4;
 
   // Some requested entity (e.g., file or directory) was not found.
-  // For privacy reasons, this code *might* be returned when the client
-  // does not have the access rights to the entity.
+  //
+  // Note to server developers: if a request is denied for an entire class
+  // of users, such as gradual feature rollout or undocumented whitelist,
+  // `NOT_FOUND` may be used. If a request is denied for some users within
+  // a class of users, such as user-based access control, `PERMISSION_DENIED`
+  // must be used.
   //
   // HTTP Mapping: 404 Not Found
   NOT_FOUND = 5;
@@ -87,7 +88,9 @@ enum Code {
   // caused by exhausting some resource (use `RESOURCE_EXHAUSTED`
   // instead for those errors). `PERMISSION_DENIED` must not be
   // used if the caller can not be identified (use `UNAUTHENTICATED`
-  // instead for those errors).
+  // instead for those errors). This error code does not imply the
+  // request is valid or the requested entity exists or satisfies
+  // other pre-conditions.
   //
   // HTTP Mapping: 403 Forbidden
   PERMISSION_DENIED = 7;
@@ -113,23 +116,15 @@ enum Code {
   // between `FAILED_PRECONDITION`, `ABORTED`, and `UNAVAILABLE`:
   //  (a) Use `UNAVAILABLE` if the client can retry just the failing call.
   //  (b) Use `ABORTED` if the client should retry at a higher level
-  //      (e.g., restarting a read-modify-write sequence).
+  //      (e.g., when a client-specified test-and-set fails, indicating the
+  //      client should restart a read-modify-write sequence).
   //  (c) Use `FAILED_PRECONDITION` if the client should not retry until
   //      the system state has been explicitly fixed.  E.g., if an "rmdir"
   //      fails because the directory is non-empty, `FAILED_PRECONDITION`
   //      should be returned since the client should not retry unless
   //      the files are deleted from the directory.
-  //  (d) Use `FAILED_PRECONDITION` if the client performs conditional
-  //      REST Get/Update/Delete on a resource and the resource on the
-  //      server does not match the condition. E.g., conflicting
-  //      read-modify-write on the same resource.
   //
   // HTTP Mapping: 400 Bad Request
-  //
-  // NOTE: HTTP spec says `412 Precondition Failed` should be used only if
-  // the request contains Etag-related headers. So if the server does see
-  // Etag-related headers in the request, it may choose to return 412
-  // instead of 400 for this error code.
   FAILED_PRECONDITION = 9;
 
   // The operation was aborted, typically due to a concurrency issue such as
@@ -175,7 +170,8 @@ enum Code {
 
   // The service is currently unavailable.  This is most likely a
   // transient condition, which can be corrected by retrying with
-  // a backoff.
+  // a backoff. Note that it is not always safe to retry
+  // non-idempotent operations.
   //
   // See the guidelines above for deciding between `FAILED_PRECONDITION`,
   // `ABORTED`, and `UNAVAILABLE`.

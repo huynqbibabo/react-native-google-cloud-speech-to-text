@@ -127,7 +127,8 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.example.reactnativegooglecloudspeechtotext"
+        applicationId "vn.bibabo.pregnant"
+//         applicationId "com.example.reactnativegooglecloudspeechtotext"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
