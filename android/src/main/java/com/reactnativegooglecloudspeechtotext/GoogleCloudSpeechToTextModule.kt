@@ -40,8 +40,8 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
       if (speechService == null) {
         // Start listening to voices
         if (apiKey === "" ) {
-//          val keyId = reactApplicationContext.resources.getIdentifier("google_api_key", "string", reactApplicationContext.packageName)
-//          apiKey = reactApplicationContext.resources.getString(keyId)
+          val keyId = reactApplicationContext.resources.getIdentifier("google_api_key", "string", reactApplicationContext.packageName)
+          apiKey = reactApplicationContext.resources.getString(keyId)
         }
         val serviceIntent = Intent(reactApplicationContext, SpeechService::class.java)
         reactApplicationContext.bindService(serviceIntent, mServiceConnection, Context.BIND_AUTO_CREATE)
@@ -59,12 +59,13 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
   }
 
   @ReactMethod
-  fun stop() {
+  fun stop(promise: Promise) {
     stopVoiceRecorder()
+    promise.resolve(true)
   }
 
   @ReactMethod
-  fun destroy() {
+  fun destroy(promise: Promise) {
     stopVoiceRecorder()
     // Stop Cloud Speech API
     if (mSpeechService !== null) {
@@ -75,6 +76,7 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
       reactApplicationContext.unbindService(mServiceConnection)
       serviceConnected = false
     }
+    promise.resolve(true)
   }
 
   private fun handleErrorEvent(throwable: Throwable) {
