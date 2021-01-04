@@ -17,6 +17,9 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
   private var apiKey: String = "";
   private var serviceConnected = false;
 
+  private val documentDirectoryPath = reactApplicationContext.filesDir.absolutePath
+  private val mTempPaths: MutableMap<Long, String> = TODO()
+
   object ErrorCode {
     const val Unknown = "-1"
     const val None = "0"
@@ -35,7 +38,14 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
   }
 
   @ReactMethod
-  fun start(promise: Promise) {
+  fun start(withVoiceOutPut: Boolean?, promise: Promise) {
+    var fileId: Long? = null
+    var filePath: String? = null
+    if (withVoiceOutPut == true) {
+      fileId = System.currentTimeMillis()
+      filePath = "$documentDirectoryPath/$fileId.pcm"
+      mTempPaths[fileId] = filePath
+    }
     try {
       if (speechService == null) {
         // Start listening to voices
@@ -46,8 +56,8 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
         val serviceIntent = Intent(reactApplicationContext, SpeechService::class.java)
         reactApplicationContext.bindService(serviceIntent, mServiceConnection, Context.BIND_AUTO_CREATE)
         serviceConnected = true
-        startVoiceRecorder()
-        promise.resolve(ErrorCode.None)
+        startVoiceRecorder(filePath)
+        promise.resolve(fileId)
 
       } else {
         promise.reject(ErrorCode.Unknown, "Another instance of SpeechService is already running")
@@ -59,7 +69,7 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
   }
 
   @ReactMethod
-  fun stop(promise: Promise) {
+  fun stop(fileId: Long?, promise: Promise) {
     stopVoiceRecorder()
     promise.resolve(true)
   }
@@ -144,13 +154,13 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
     }
   }
 
-  private fun startVoiceRecorder() {
+  private fun startVoiceRecorder(path: String?) {
     Log.i(TAG, "StartVoiceRecorder: ")
     if (mVoiceRecorder != null) {
       mVoiceRecorder?.stop()
     }
     mVoiceRecorder = VoiceRecorder(mVoiceCallback)
-    mVoiceRecorder?.start()
+    mVoiceRecorder?.start(path)
   }
 
   private fun stopVoiceRecorder() {
@@ -170,5 +180,6 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
       sendJSEvent(reactApplicationContext, "onSpeechRecognized", params)
     }
   }
+
 
 }
