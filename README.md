@@ -2,11 +2,30 @@
 
 Google cloud speech to text streaming GRPC module
 
+## Features
+* Enable the Speech API
+* Record voice as audio file(coming soon!)
+
+## Requirements
+- React Native >= 0.60
+- If you have not already done so,
+  [enable the Google Speech API for your project](https://cloud.google.com/speech/docs/getting-started). You
+  must be whitelisted to do this.
+
+> By default, module read google cloud api key from google services json file. So android may need to [Set Up Google Play Services](https://developers.google.com/android/guides/setup). and make sure your api key can access to [Cloud services](https://cloud.google.com/speech-to-text/docs/quickstart-gcloud).
+> API key can also replace by `setApiKey()` method in js code.
+
 ## Installation
 
 ```sh
-yarn add @bibabovn/react-native-google-cloud-speech-to-text
+yarn add react-native-google-cloud-speech-to-text
 ```
+
+#### android
+- Don't forget request [RECORD_AUDIO PERMISSION](https://reactnative.dev/docs/permissionsandroid) before start recognize
+
+#### IOS
+- Coming soon!
 
 ## Usage
 
@@ -25,7 +44,7 @@ import GoogleCloudSpeechToText, {
   OnSpeechEvent,
   SpeechStartEvent,
   SpeechErrorEvent,
-} from '@bibabovn/react-native-google-cloud-speech-to-text';
+} from 'react-native-google-cloud-speech-to-text';
 import { useEffect } from 'react';
 
 const Separator = () => <View style={styles.separator} />;
