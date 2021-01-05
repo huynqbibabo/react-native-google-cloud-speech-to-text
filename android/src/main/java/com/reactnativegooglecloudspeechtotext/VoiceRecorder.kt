@@ -5,6 +5,7 @@ import android.media.AudioRecord
 import android.media.MediaRecorder
 import com.reactnativegooglecloudspeechtotext.VoiceRecorder.Callback
 import java.io.FileOutputStream
+import kotlin.math.abs
 
 /**
  * Continuously records audio and notifies the [Callback] when voice (or any
@@ -62,7 +63,7 @@ class VoiceRecorder(private val mCallback: Callback) {
    *
    * The caller is responsible for calling [.stop] later.
    */
-  fun start(path: String? = null) {
+  fun start(path: String?) {
     if (!path.isNullOrEmpty()) mOutputStream = FileOutputStream(path)
     // Stop recording if it is currently ongoing.
     stop()
@@ -83,8 +84,10 @@ class VoiceRecorder(private val mCallback: Callback) {
    */
   fun stop() {
     synchronized(mLock) {
-      mOutputStream!!.close()
-      mOutputStream = null
+      if (mOutputStream !== null) {
+        mOutputStream?.close()
+        mOutputStream = null
+      }
       dismiss()
       if (mThread != null) {
         mThread!!.interrupt()
@@ -163,9 +166,9 @@ class VoiceRecorder(private val mCallback: Callback) {
     override fun run() {
       while (true) {
         synchronized(mLock) {
-          if (Thread.currentThread().isInterrupted) break
+          if (Thread.currentThread().isInterrupted) return
           val size: Int = mAudioRecord!!.read(mBuffer, 0, mBuffer!!.size)
-          mOutputStream!!.write(mBuffer,0, size)
+          mOutputStream?.write(mBuffer,0, size)
           val now: Long = System.currentTimeMillis()
           if (isHearingVoice(mBuffer, size)) {
             if (mLastVoiceHeardMillis == Long.MAX_VALUE) {
@@ -200,7 +203,7 @@ class VoiceRecorder(private val mCallback: Callback) {
         var s = buffer!![i + 1].toInt()
         if (s < 0) s *= -1
         s = s shl 8
-        s += Math.abs(buffer[i])
+        s += abs(buffer[i].toInt())
         if (s > AMPLITUDE_THRESHOLD) {
           return true
         }

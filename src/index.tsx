@@ -7,20 +7,21 @@ const VoiceEmitter = new NativeEventEmitter(GoogleCloudSpeechToText);
 type SpeechEvent = keyof SpeechEvents;
 
 export interface SpeechEvents {
-  onSpeechStart?: (e: SpeechStartEvent) => void;
-  onSpeech?: (e: OnSpeechEvent) => void;
-  onSpeechEnd?: () => void;
+  onVoiceStart?: (e: VoiceStartEvent) => void;
+  onVoice?: (e: VoiceEvent) => void;
+  onVoiceEnd?: () => void;
+
   onSpeechError?: (e: SpeechErrorEvent) => void;
-
-  onSpeechRecognized?: (e: SpeechRecognizedEvent) => void;
+  onSpeechRecognized?: (e: SpeechRecognizeEvent) => void;
+  onSpeechRecognizing?: (e: SpeechRecognizeEvent) => void;
 }
 
-export interface SpeechStartEvent {
+export interface VoiceStartEvent {
   sampleRate: number;
-  state: number;
+  voiceRecorderState: number;
 }
 
-export interface OnSpeechEvent {
+export interface VoiceEvent {
   size: number;
 }
 
@@ -31,10 +32,22 @@ export interface SpeechErrorEvent {
   };
 }
 
-export interface SpeechRecognizedEvent {
+export interface SpeechRecognizeEvent {
   isFinal: boolean;
   transcript: string;
 }
+
+export interface SpeechStartEvent {
+  fileId: string;
+  tmpPath: string;
+}
+
+export interface StartOptions {
+  speechToFile?: boolean;
+  languageCode?: string;
+}
+
+export type FileId = number;
 
 class GCSpeechToText {
   private readonly _events: Required<SpeechEvents>;
@@ -43,15 +56,21 @@ class GCSpeechToText {
   constructor() {
     this._listeners = null;
     this._events = {
-      onSpeech: () => undefined,
-      onSpeechEnd: () => undefined,
+      onVoice: () => undefined,
+      onVoiceEnd: () => undefined,
       onSpeechError: () => undefined,
-      onSpeechStart: () => undefined,
+      onVoiceStart: () => undefined,
       onSpeechRecognized: () => undefined,
+      onSpeechRecognizing: () => undefined,
     };
   }
 
-  async start(): Promise<void> {
+  /**
+   * Start speech recognize
+   * return file Id: number if set saveToFile = true
+   * @param options
+   */
+  async start(options?: StartOptions): Promise<SpeechStartEvent> {
     if (!this._listeners) {
       this._listeners = (Object.keys(
         this._events
@@ -59,12 +78,19 @@ class GCSpeechToText {
         VoiceEmitter.addListener(key, this._events[key])
       );
     }
-
-    return await GoogleCloudSpeechToText.start();
+    return await GoogleCloudSpeechToText.start(
+      Object.assign(
+        {
+          languageCode: 'en-US',
+          speechToFile: false,
+        },
+        options
+      )
+    );
   }
 
   async stop(): Promise<void> {
-    await GoogleCloudSpeechToText.stop();
+    return await GoogleCloudSpeechToText.stop();
   }
 
   setApiKey(apiKey: string): void {
@@ -80,24 +106,28 @@ class GCSpeechToText {
     await GoogleCloudSpeechToText.destroy();
   }
 
-  onSpeechStart(fn: (data: SpeechStartEvent) => void) {
-    this._events.onSpeechStart = fn;
+  onVoiceStart(fn: (data: VoiceStartEvent) => void) {
+    this._events.onVoiceStart = fn;
   }
 
-  onSpeech(fn: (data: OnSpeechEvent) => void) {
-    this._events.onSpeech = fn;
+  onVoice(fn: (data: VoiceEvent) => void) {
+    this._events.onVoice = fn;
   }
 
-  onSpeechEnd(fn: () => void) {
-    this._events.onSpeechEnd = fn;
+  onVoiceEnd(fn: () => void) {
+    this._events.onVoiceEnd = fn;
   }
 
   onSpeechError(fn: (error: SpeechErrorEvent) => void) {
     this._events.onSpeechError = fn;
   }
 
-  onSpeechRecognized(fn: (data: SpeechRecognizedEvent) => void) {
+  onSpeechRecognized(fn: (data: SpeechRecognizeEvent) => void) {
     this._events.onSpeechRecognized = fn;
+  }
+
+  onSpeechRecognizing(fn: (data: SpeechRecognizeEvent) => void) {
+    this._events.onSpeechRecognizing = fn;
   }
 }
 
