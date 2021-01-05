@@ -16,6 +16,10 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
   private var speechService: SpeechService? = null
   private var apiKey: String = "";
   private var serviceConnected = false;
+  private var languageCode: String = "en-US"
+
+  private val documentDirectoryPath = reactApplicationContext.filesDir.absolutePath
+  private var mTempPaths: MutableMap<String, String> = HashMap()
 
   object ErrorCode {
     const val Unknown = "-1"
@@ -35,8 +39,20 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
   }
 
   @ReactMethod
-  fun start(promise: Promise) {
+  fun start(options: ReadableMap, promise: Promise) {
     try {
+      languageCode = options.getString("languageCode").toString()
+      var fileId: String = ""
+      var filePath: String = ""
+      val speechToFile: Boolean = options.getBoolean("speechToFile")
+      if (speechToFile) {
+        fileId = System.currentTimeMillis().toString()
+        filePath = "$documentDirectoryPath/$fileId.pcm"
+        Log.i(TAG, "start: $fileId")
+        Log.i(TAG, "start: $filePath")
+        mTempPaths[fileId] = filePath
+      }
+
       if (speechService == null) {
         // Start listening to voices
         if (apiKey === "" ) {
@@ -46,13 +62,18 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
         val serviceIntent = Intent(reactApplicationContext, SpeechService::class.java)
         reactApplicationContext.bindService(serviceIntent, mServiceConnection, Context.BIND_AUTO_CREATE)
         serviceConnected = true
-        startVoiceRecorder()
-        promise.resolve(ErrorCode.None)
+        startVoiceRecorder(null)
+//        startVoiceRecorder(filePath)
+        val params = Arguments.createMap()
+        params.putString("fileId", fileId)
+        params.putString("tmpPath", filePath)
+        promise.resolve(params)
 
       } else {
         promise.reject(ErrorCode.Unknown, "Another instance of SpeechService is already running")
       }
     } catch (e: Exception) {
+      Log.e(TAG, "start: ", e)
       handleErrorEvent(e)
       promise.reject(ErrorCode.Unknown, e.message)
     }
@@ -103,10 +124,10 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
       if (mSpeechService != null) {
         val params = Arguments.createMap()
         params.putInt("sampleRate", mVoiceRecorder!!.sampleRate)
-        params.putInt("state", mVoiceRecorder!!.state)
-        mSpeechService?.startRecognizing(mVoiceRecorder!!.sampleRate, apiKey)
+        params.putInt("voiceRecorderState", mVoiceRecorder!!.state)
+        sendJSEvent(reactApplicationContext, "onVoiceStart", params)
+        mSpeechService?.startRecognizing(mVoiceRecorder!!.sampleRate, apiKey, languageCode)
 
-        sendJSEvent(reactApplicationContext, "onSpeechStart", params)
       }
     }
 
@@ -115,18 +136,17 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
       if (mSpeechService != null) {
         val params = Arguments.createMap()
         params.putInt("size", size)
+        sendJSEvent(reactApplicationContext, "onVoice", params)
         mSpeechService?.recognize(data, size)
-
-//        sendJSEvent(reactApplicationContext, "onSpeech", params)
       }
     }
 
     override fun onVoiceEnd() {
       Log.i(TAG, "onVoiceEnd: ")
+      val params = Arguments.createMap()
+      sendJSEvent(reactApplicationContext, "onVoiceEnd", params)
       if (mSpeechService != null) {
-        val params = Arguments.createMap()
         mSpeechService?.finishRecognizing()
-        sendJSEvent(reactApplicationContext, "onVoiceEnd", params)
       }
     }
   }
@@ -144,13 +164,13 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
     }
   }
 
-  private fun startVoiceRecorder() {
+  private fun startVoiceRecorder(path: String?) {
     Log.i(TAG, "StartVoiceRecorder: ")
     if (mVoiceRecorder != null) {
       mVoiceRecorder?.stop()
     }
     mVoiceRecorder = VoiceRecorder(mVoiceCallback)
-    mVoiceRecorder?.start()
+    mVoiceRecorder?.start(path)
   }
 
   private fun stopVoiceRecorder() {
@@ -162,13 +182,17 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
 
   private val mSpeechServiceListener: SpeechService.Listener = SpeechService.Listener { text, isFinal ->
     Log.i(TAG, "onSpeechRecognized: $text")
+
+    val params = Arguments.createMap()
+    params.putString("transcript", text)
+    params.putBoolean("isFinal", isFinal)
     if (isFinal) {
-      mVoiceRecorder?.dismiss()
-      val params = Arguments.createMap()
-      params.putString("transcript", text)
-      params.putBoolean("isFinal", isFinal)
       sendJSEvent(reactApplicationContext, "onSpeechRecognized", params)
+      mVoiceRecorder?.dismiss()
+    } else {
+      sendJSEvent(reactApplicationContext, "onSpeechRecognizing", params)
     }
   }
+
 
 }

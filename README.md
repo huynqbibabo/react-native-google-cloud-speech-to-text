@@ -40,10 +40,11 @@ import {
   PermissionsAndroid,
 } from 'react-native';
 import GoogleCloudSpeechToText, {
-  SpeechRecognizedEvent,
-  OnSpeechEvent,
-  SpeechStartEvent,
+  SpeechRecognizeEvent,
+  VoiceStartEvent,
   SpeechErrorEvent,
+  VoiceEvent,
+  SpeechStartEvent,
 } from 'react-native-google-cloud-speech-to-text';
 import { useEffect } from 'react';
 
@@ -54,9 +55,9 @@ export default function App() {
 
   useEffect(() => {
     PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO, {
-      title: 'Cool App Permission',
+      title: 'Cool Photo App Camera Permission',
       message:
-        'Cool Photo App needs access to your microphone ' +
+        'Cool Photo App needs access to your camera ' +
         'so you can take awesome pictures.',
       buttonNeutral: 'Ask Me Later',
       buttonNegative: 'Cancel',
@@ -65,44 +66,53 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    GoogleCloudSpeechToText.setApiKey('YOUR-API-KEY');
-    GoogleCloudSpeechToText.onSpeech(onSpeech);
-    GoogleCloudSpeechToText.onSpeechStart(onSpeechStart);
-    GoogleCloudSpeechToText.onSpeechEnd(onSpeechEnd);
+    // GoogleCloudSpeechToText.setApiKey('key_____');
+    GoogleCloudSpeechToText.onVoice(onVoice);
+    GoogleCloudSpeechToText.onVoiceStart(onVoiceStart);
+    GoogleCloudSpeechToText.onVoiceEnd(onVoiceEnd);
     GoogleCloudSpeechToText.onSpeechError(onSpeechError);
     GoogleCloudSpeechToText.onSpeechRecognized(onSpeechRecognized);
+    GoogleCloudSpeechToText.onSpeechRecognizing(onSpeechRecognizing);
     return () => {
       GoogleCloudSpeechToText.removeListeners();
     };
   }, []);
 
-  const onSpeechRecognized = (result: SpeechRecognizedEvent) => {
-    console.log(result);
-    setResult(result.transcript);
-  };
-
-  const onSpeechStart = (_event: SpeechStartEvent) => {
-    console.log('onSpeechStart', _event);
-  };
-
-  const onSpeech = (_event: OnSpeechEvent) => {
-    console.log('onSpeech', _event);
-  };
-
-  const onSpeechEnd = () => {
-    console.log('onSpeechEnd: ');
-  };
-
   const onSpeechError = (_error: SpeechErrorEvent) => {
     console.log('onSpeechError: ', _error);
   };
 
-  const startRecognizing = () => {
-    GoogleCloudSpeechToText.start();
+  const onSpeechRecognized = (result: SpeechRecognizeEvent) => {
+    console.log('onSpeechRecognized: ', result);
+    setResult(result.transcript);
   };
 
-  const stopRecognizing = () => {
-    GoogleCloudSpeechToText.stop();
+  const onSpeechRecognizing = (result: SpeechRecognizeEvent) => {
+    console.log('onSpeechRecognizing: ', result);
+    setResult(result.transcript);
+  };
+
+  const onVoiceStart = (_event: VoiceStartEvent) => {
+    console.log('onVoiceStart', _event);
+  };
+
+  const onVoice = (_event: VoiceEvent) => {
+    console.log('onVoice', _event);
+  };
+
+  const onVoiceEnd = () => {
+    console.log('onVoiceEnd: ');
+  };
+
+  const startRecognizing = async () => {
+    const result: SpeechStartEvent = await GoogleCloudSpeechToText.start({
+      speechToFile: true,
+    });
+    console.log('startRecognizing', result);
+  };
+
+  const stopRecognizing = async () => {
+    await GoogleCloudSpeechToText.stop();
   };
 
   return (

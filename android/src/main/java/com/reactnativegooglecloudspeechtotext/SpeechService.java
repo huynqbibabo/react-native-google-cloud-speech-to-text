@@ -195,7 +195,7 @@ public class SpeechService extends Service {
    *
    * @param sampleRate The sample rate of the audio.
    */
-  public void startRecognizing(int sampleRate, String apiKey) {
+  public void startRecognizing(int sampleRate, String apiKey, String languageCode) {
     Log.i(TAG, "startRecognizing with api: " + apiKey);
     isRecognizing = true;
     final ManagedChannel channel = new OkHttpChannelProvider()
@@ -211,7 +211,7 @@ public class SpeechService extends Service {
     mRequestObserver.onNext(StreamingRecognizeRequest.newBuilder()
       .setStreamingConfig(StreamingRecognitionConfig.newBuilder()
         .setConfig(RecognitionConfig.newBuilder()
-          .setLanguageCode("en-US")
+          .setLanguageCode(languageCode)
           .setEncoding(RecognitionConfig.AudioEncoding.LINEAR16)
           .setSampleRateHertz(sampleRate)
           .build())
