@@ -7,23 +7,24 @@ import android.util.Log
 import com.facebook.react.bridge.ReadableMap
 import java.lang.Exception
 import java.nio.ByteBuffer
-import java.util.*
 
 
 class AACEncoder(configs: ReadableMap, private val mCallback: Callback) {
 
-  private val TAG = "AACEncoder"
+  companion object EncoderConfigs {
+    private const val TAG = "AACEncoder"
 
-  //Bit rate
-  private val KEY_BIT_RATE = 96000
+    //Bit rate
+    private const val KEY_BIT_RATE = 96000
 
-  //The maximum number of bytes of data read
-  private val KEY_MAX_INPUT_SIZE = 1024 * 1024
+    //The maximum number of bytes of data read
+    private const val KEY_MAX_INPUT_SIZE = 1024 * 1024
 
-  //Number of channels
-  private val CHANNEL_COUNT = 2
+    //Number of channels
+    private const val CHANNEL_COUNT = 2
+  }
 
-  private var mediaCodec: MediaCodec? = null;
+  private var mediaCodec: MediaCodec? = null
   private var encodeInputBuffers: Array<ByteBuffer>? = null
   private var encodeOutputBuffers: Array<ByteBuffer>? = null
   private var encodeBufferInfo: MediaCodec.BufferInfo? = null

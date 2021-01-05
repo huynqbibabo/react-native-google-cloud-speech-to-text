@@ -16,17 +16,17 @@ import java.io.FileOutputStream
 
 
 class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
-  private val TAG = "GoogleCloudSpeechToText";
+  private val TAG = "GoogleCloudSpeechToText"
   private var mSpeechService: SpeechService? = null
   private var mVoiceRecorder: VoiceRecorder? = null
   private var speechService: SpeechService? = null
-  private var apiKey: String = "";
-  private var serviceConnected = false;
+  private var apiKey: String = ""
+  private var serviceConnected = false
   private var languageCode: String = "en-US"
 
   private var mTempFiles: MutableMap<String, File> = HashMap()
 
-  object ErrorCode {
+  companion object ErrorCode {
     const val Unknown = "-1"
     const val FileMismatch = "3"
   }
@@ -73,12 +73,12 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
         promise.resolve(params)
 
       } else {
-        promise.reject(ErrorCode.Unknown, "Another instance of SpeechService is already running")
+        promise.reject(Unknown, "Another instance of SpeechService is already running")
       }
     } catch (e: Exception) {
       Log.e(TAG, "start: ", e)
       handleErrorEvent(e)
-      promise.reject(ErrorCode.Unknown, e.message)
+      promise.reject(Unknown, e.message)
     }
   }
 
@@ -93,7 +93,7 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
     try {
       val tmpFile = mTempFiles[fileId]
       if (tmpFile?.isFile != true) {
-        promise.reject(ErrorCode.FileMismatch, "File not found!")
+        promise.reject(FileMismatch, "File not found!")
         return
       }
       val inputStream = FileInputStream(tmpFile)
@@ -115,13 +115,13 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
 
       val params = Arguments.createMap()
       params.putDouble("size", outputStream.channel.size().toDouble())
-
       params.putString("path", outPutFile.absolutePath)
 
       inputStream.close()
       outputStream.close()
       mTempFiles.remove(fileId)
       tmpFile.delete()
+
       promise.resolve(params)
     } catch (e: Exception) {
       e.printStackTrace()
@@ -174,7 +174,7 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
         params.putInt("sampleRate", mVoiceRecorder!!.sampleRate)
         params.putInt("voiceRecorderState", mVoiceRecorder!!.state)
         sendJSEvent(reactApplicationContext, "onVoiceStart", params)
-        mSpeechService?.startRecognizing(mVoiceRecorder!!.sampleRate, apiKey, languageCode)
+        mSpeechService!!.startRecognizing(mVoiceRecorder!!.sampleRate, apiKey, languageCode)
 
       }
     }
@@ -194,7 +194,7 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
       val params = Arguments.createMap()
       sendJSEvent(reactApplicationContext, "onVoiceEnd", params)
       if (mSpeechService != null) {
-        mSpeechService?.finishRecognizing()
+        mSpeechService!!.finishRecognizing()
       }
     }
   }
@@ -215,30 +215,32 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
   private fun startVoiceRecorder(file: File?) {
     Log.d(TAG, "StartVoiceRecorder: ")
     if (mVoiceRecorder != null) {
-      mVoiceRecorder?.stop()
+      mVoiceRecorder!!.stop()
     }
     mVoiceRecorder = VoiceRecorder(mVoiceCallback)
-    mVoiceRecorder?.start(file)
+    mVoiceRecorder!!.start(file)
   }
 
   private fun stopVoiceRecorder() {
     if (mVoiceRecorder != null) {
-      mVoiceRecorder?.stop()
+      mVoiceRecorder!!.stop()
       mVoiceRecorder = null
     }
   }
 
-  private val mSpeechServiceListener: SpeechService.Listener = SpeechService.Listener { text, isFinal ->
-    Log.d(TAG, "onSpeechRecognized: $text")
+  private val mSpeechServiceListener: SpeechService.Listener = object: SpeechService.Listener() {
+    override fun onSpeechRecognized(text: String?, isFinal: Boolean) {
+      Log.d(TAG, "onSpeechRecognized: $text")
 
-    val params = Arguments.createMap()
-    params.putString("transcript", text)
-    params.putBoolean("isFinal", isFinal)
-    if (isFinal) {
-      sendJSEvent(reactApplicationContext, "onSpeechRecognized", params)
-      mVoiceRecorder?.dismiss()
-    } else {
-      sendJSEvent(reactApplicationContext, "onSpeechRecognizing", params)
+      val params = Arguments.createMap()
+      params.putString("transcript", text)
+      params.putBoolean("isFinal", isFinal)
+      if (isFinal) {
+        sendJSEvent(reactApplicationContext, "onSpeechRecognized", params)
+        mVoiceRecorder?.dismiss()
+      } else {
+        sendJSEvent(reactApplicationContext, "onSpeechRecognizing", params)
+      }
     }
   }
 
