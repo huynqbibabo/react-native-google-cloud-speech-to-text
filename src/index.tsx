@@ -5,6 +5,32 @@ const { GoogleCloudSpeechToText } = NativeModules;
 const VoiceEmitter = new NativeEventEmitter(GoogleCloudSpeechToText);
 
 type SpeechEvent = keyof SpeechEvents;
+enum AndroidChannel {
+  DEFAULT = 0,
+  MIC,
+  VOICE_UPLINK,
+  VOICE_DOWNLINK,
+  VOICE_CALL,
+  CAMCORDER,
+  VOICE_RECOGNITION,
+  VOICE_COMMUNICATION,
+  REMOTE_SUBMIX,
+  UNPROCESSED,
+  RADIO_TUNER = 1998,
+  HOTWORD,
+}
+
+// enum Encoder {
+//   DEFAULT = 0,
+//   AMR_NB,
+//   AMR_WB,
+//   AAC,
+//   HE_AAC,
+//   AAC_ELD,
+//   VORBIS,
+// }
+
+type SampleRate = 16000 | 11025 | 22050 | 44100;
 
 export interface SpeechEvents {
   onVoiceStart?: (e: VoiceStartEvent) => void;
@@ -45,6 +71,16 @@ export interface SpeechStartEvent {
 export interface StartOptions {
   speechToFile?: boolean;
   languageCode?: string;
+}
+
+export interface OutputFile {
+  size: number;
+  path: string;
+}
+
+export interface OutputConfig {
+  sampleRate?: SampleRate;
+  channel?: AndroidChannel;
 }
 
 export type FileId = number;
@@ -95,6 +131,21 @@ class GCSpeechToText {
 
   setApiKey(apiKey: string): void {
     GoogleCloudSpeechToText.setApiKey(apiKey);
+  }
+
+  /**
+   * get recognized voice as aac file
+   * @param file id return from start()
+   * @param options
+   */
+  async getAudioFile(
+    file: string,
+    options?: OutputConfig
+  ): Promise<OutputFile> {
+    return await GoogleCloudSpeechToText.getAudioFile(
+      file,
+      Object.assign({ channel: AndroidChannel.MIC, sampleRate: 44100 }, options)
+    );
   }
 
   async removeListeners(): Promise<void> {
