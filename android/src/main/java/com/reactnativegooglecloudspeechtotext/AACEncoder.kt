@@ -32,9 +32,9 @@ class AACEncoder(configs: ReadableMap, private val mCallback: Callback) {
   init {
     try {
       //Parameter correspondence -> mime type, sampling rate, number of channels
-      val encodeFormat = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, configs.getInt("sampleRate"), CHANNEL_COUNT)
+      val encodeFormat = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, configs.getInt("sampleRate"), configs.getInt("channel"))
       //Bit rate
-      encodeFormat.setInteger(MediaFormat.KEY_BIT_RATE, KEY_BIT_RATE)
+      encodeFormat.setInteger(MediaFormat.KEY_BIT_RATE, configs.getInt("bitrate"))
       encodeFormat.setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC)
       encodeFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, KEY_MAX_INPUT_SIZE)
       mediaCodec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC)

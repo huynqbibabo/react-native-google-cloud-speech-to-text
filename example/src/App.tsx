@@ -15,11 +15,15 @@ import GoogleCloudSpeechToText, {
   SpeechStartEvent,
 } from 'react-native-google-cloud-speech-to-text';
 import { useEffect } from 'react';
+import { Player } from '@react-native-community/audio-toolkit';
 
 const Separator = () => <View style={styles.separator} />;
 
 export default function App() {
   const [transcript, setResult] = React.useState<string>('');
+
+  const [fileId, setId] = React.useState<string>('');
+  const [file, setFile] = React.useState<string>('');
 
   useEffect(() => {
     PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO, {
@@ -77,10 +81,37 @@ export default function App() {
       speechToFile: true,
     });
     console.log('startRecognizing', result);
+    if (result.fileId) setId(result.fileId);
   };
 
   const stopRecognizing = async () => {
     await GoogleCloudSpeechToText.stop();
+  };
+
+  const getAudioFile = async () => {
+    if (fileId) {
+      const result = await GoogleCloudSpeechToText.getAudioFile(fileId, {
+        channel: 2,
+        bitrate: 96000,
+        sampleRate: 44100,
+      });
+      console.log(result);
+      if (result.path) {
+        setFile(result.path);
+      }
+    }
+  };
+
+  const playAudio = () => {
+    const player = new Player(file, {
+      autoDestroy: true,
+    }).prepare((err) => {
+      if (err) {
+        console.log(err);
+      } else {
+        player.play();
+      }
+    });
   };
 
   return (
@@ -98,6 +129,29 @@ export default function App() {
         </Text>
         <Button title="Stop me" color="#f194ff" onPress={stopRecognizing} />
       </View>
+      <Separator />
+      <View>
+        <Button
+          disabled={transcript === ''}
+          title="Get file audio"
+          color="#f194ff"
+          onPress={getAudioFile}
+        />
+      </View>
+      {file && (
+        <>
+          <Separator />
+          <Text style={styles.title}>file</Text>
+          <View>
+            <Button
+              disabled={transcript === ''}
+              title="Play"
+              color="#f194ff"
+              onPress={playAudio}
+            />
+          </View>
+        </>
+      )}
     </SafeAreaView>
   );
 }

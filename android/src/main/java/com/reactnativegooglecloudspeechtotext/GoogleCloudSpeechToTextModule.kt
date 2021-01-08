@@ -24,6 +24,9 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
   private var serviceConnected = false
   private var languageCode: String = "en-US"
 
+  private var serviceIntent: Intent? = null
+  private val mLock = Any()
+
   private var mTempFiles: MutableMap<String, File> = HashMap()
 
   companion object ErrorCode {
@@ -58,11 +61,11 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
 
       if (speechService == null) {
         // Start listening to voices
-        if (apiKey === "" ) {
+        if (apiKey === "") {
           val keyId = reactApplicationContext.resources.getIdentifier("google_api_key", "string", reactApplicationContext.packageName)
           apiKey = reactApplicationContext.resources.getString(keyId)
         }
-        val serviceIntent = Intent(reactApplicationContext, SpeechService::class.java)
+        serviceIntent = Intent(reactApplicationContext, SpeechService::class.java)
         reactApplicationContext.bindService(serviceIntent, mServiceConnection, Context.BIND_AUTO_CREATE)
         serviceConnected = true
 //        startVoiceRecorder(null)
@@ -101,7 +104,7 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
       val outputStream = FileOutputStream(outPutFile)
       val bufferSize = AudioRecord.getMinBufferSize(configs.getInt("sampleRate"), configs.getInt("channel"), AudioFormat.ENCODING_PCM_16BIT)
       val data = ByteArray(bufferSize)
-      val encoderCallback: AACEncoder.Callback = object: AACEncoder.Callback() {
+      val encoderCallback: AACEncoder.Callback = object : AACEncoder.Callback() {
         override fun onByte(data: ByteArray?) {
           outputStream.write(data)
         }
@@ -131,21 +134,24 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
 
   @ReactMethod
   fun destroy(promise: Promise) {
-    stopVoiceRecorder()
-    // Stop Cloud Speech API
-    if (mSpeechService !== null) {
+    synchronized(mLock) {
+      stopVoiceRecorder()
+      // Stop Cloud Speech API
       mSpeechService?.removeListener(mSpeechServiceListener)
       mSpeechService = null
+      if (serviceConnected) {
+        reactApplicationContext.unbindService(mServiceConnection)
+        serviceConnected = false
+      }
+
+      mSpeechService?.stopSelf()
+      mSpeechService = null
+      if (mTempFiles.isNotEmpty()) {
+        mTempFiles.forEach(action = { it.value.delete() })
+        mTempFiles.clear()
+      }
+      promise.resolve(true)
     }
-    if (serviceConnected) {
-      reactApplicationContext.unbindService(mServiceConnection)
-      serviceConnected = false
-    }
-    if (mTempFiles.isNotEmpty()) {
-      mTempFiles.forEach(action = { it.value.delete()})
-      mTempFiles.clear()
-    }
-    promise.resolve(true)
   }
 
   private fun handleErrorEvent(throwable: Throwable) {
@@ -166,7 +172,7 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
       .emit(eventName, params)
   }
 
-  private val mVoiceCallback: VoiceRecorder.Callback = object: VoiceRecorder.Callback() {
+  private val mVoiceCallback: VoiceRecorder.Callback = object : VoiceRecorder.Callback() {
     override fun onVoiceStart() {
       Log.d(TAG, "onVoiceStart: ")
       if (mSpeechService != null) {
@@ -228,7 +234,7 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
     }
   }
 
-  private val mSpeechServiceListener: SpeechService.Listener = object: SpeechService.Listener() {
+  private val mSpeechServiceListener: SpeechService.Listener = object : SpeechService.Listener() {
     override fun onSpeechRecognized(text: String?, isFinal: Boolean) {
       Log.d(TAG, "onSpeechRecognized: $text")
 

@@ -5,32 +5,14 @@ const { GoogleCloudSpeechToText } = NativeModules;
 const VoiceEmitter = new NativeEventEmitter(GoogleCloudSpeechToText);
 
 type SpeechEvent = keyof SpeechEvents;
-enum AndroidChannel {
-  DEFAULT = 0,
-  MIC,
-  VOICE_UPLINK,
-  VOICE_DOWNLINK,
-  VOICE_CALL,
-  CAMCORDER,
-  VOICE_RECOGNITION,
-  VOICE_COMMUNICATION,
-  REMOTE_SUBMIX,
-  UNPROCESSED,
-  RADIO_TUNER = 1998,
-  HOTWORD,
+
+enum ChannelCount {
+  MONO = 1,
+  STEREO,
 }
 
-// enum Encoder {
-//   DEFAULT = 0,
-//   AMR_NB,
-//   AMR_WB,
-//   AAC,
-//   HE_AAC,
-//   AAC_ELD,
-//   VORBIS,
-// }
-
 type SampleRate = 16000 | 11025 | 22050 | 44100;
+type Bitrate = 64000 | 96000 | 128000 | 192000 | 256000;
 
 export interface SpeechEvents {
   onVoiceStart?: (e: VoiceStartEvent) => void;
@@ -80,10 +62,9 @@ export interface OutputFile {
 
 export interface OutputConfig {
   sampleRate?: SampleRate;
-  channel?: AndroidChannel;
+  bitrate?: Bitrate;
+  channel?: ChannelCount;
 }
-
-export type FileId = number;
 
 class GCSpeechToText {
   private readonly _events: Required<SpeechEvents>;
@@ -144,16 +125,23 @@ class GCSpeechToText {
   ): Promise<OutputFile> {
     return await GoogleCloudSpeechToText.getAudioFile(
       file,
-      Object.assign({ channel: AndroidChannel.MIC, sampleRate: 44100 }, options)
+      Object.assign(
+        { channel: ChannelCount.STEREO, sampleRate: 44100, bitrate: 96000 },
+        options
+      )
     );
   }
 
-  async removeListeners(): Promise<void> {
+  removeListeners() {
     if (this._listeners) {
       this._listeners.map((listener) => listener.remove());
       this._listeners = null;
     }
     this._listeners = null;
+  }
+
+  async destroy() {
+    this.removeListeners();
     await GoogleCloudSpeechToText.destroy();
   }
 
