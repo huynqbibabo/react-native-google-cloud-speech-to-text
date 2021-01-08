@@ -4,28 +4,34 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.media.AudioFormat
+import android.media.AudioRecord
 import android.os.IBinder
 import android.util.Log
 import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule.RCTDeviceEventEmitter
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+
 
 class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
-  private val TAG = "GoogleCloudSpeechToText";
+  private val TAG = "GoogleCloudSpeechToText"
   private var mSpeechService: SpeechService? = null
   private var mVoiceRecorder: VoiceRecorder? = null
   private var speechService: SpeechService? = null
-  private var apiKey: String = "";
-  private var serviceConnected = false;
+  private var apiKey: String = ""
+  private var serviceConnected = false
   private var languageCode: String = "en-US"
 
-  private val documentDirectoryPath = reactApplicationContext.filesDir.absolutePath
-  private var mTempPaths: MutableMap<String, String> = HashMap()
+  private var serviceIntent: Intent? = null
+  private val mLock = Any()
 
-  object ErrorCode {
+  private var mTempFiles: MutableMap<String, File> = HashMap()
+
+  companion object ErrorCode {
     const val Unknown = "-1"
-    const val None = "0"
-    const val PermissionDenied = "1"
-    const val ApiKeyMissing = "2"
+    const val FileMismatch = "3"
   }
 
   override fun getName(): String {
@@ -34,7 +40,7 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
 
   @ReactMethod
   fun setApiKey(key: String) {
-    Log.i(TAG, "setApiKey: $key")
+    Log.d(TAG, "setApiKey: $key")
     apiKey = key
   }
 
@@ -42,40 +48,40 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
   fun start(options: ReadableMap, promise: Promise) {
     try {
       languageCode = options.getString("languageCode").toString()
-      var fileId: String = ""
-      var filePath: String = ""
+      var fileId = ""
+      var file: File? = null
       val speechToFile: Boolean = options.getBoolean("speechToFile")
       if (speechToFile) {
         fileId = System.currentTimeMillis().toString()
-        filePath = "$documentDirectoryPath/$fileId.pcm"
-        Log.i(TAG, "start: $fileId")
-        Log.i(TAG, "start: $filePath")
-        mTempPaths[fileId] = filePath
+        file = buildFile(fileId, "pcm")
+        Log.d(TAG, "start: $fileId")
+        Log.d(TAG, "start: $file")
+        mTempFiles[fileId] = file
       }
 
       if (speechService == null) {
         // Start listening to voices
-        if (apiKey === "" ) {
+        if (apiKey === "") {
           val keyId = reactApplicationContext.resources.getIdentifier("google_api_key", "string", reactApplicationContext.packageName)
           apiKey = reactApplicationContext.resources.getString(keyId)
         }
-        val serviceIntent = Intent(reactApplicationContext, SpeechService::class.java)
+        serviceIntent = Intent(reactApplicationContext, SpeechService::class.java)
         reactApplicationContext.bindService(serviceIntent, mServiceConnection, Context.BIND_AUTO_CREATE)
         serviceConnected = true
-        startVoiceRecorder(null)
-//        startVoiceRecorder(filePath)
+//        startVoiceRecorder(null)
+        startVoiceRecorder(file)
         val params = Arguments.createMap()
         params.putString("fileId", fileId)
-        params.putString("tmpPath", filePath)
+        params.putString("tmpPath", file?.path)
         promise.resolve(params)
 
       } else {
-        promise.reject(ErrorCode.Unknown, "Another instance of SpeechService is already running")
+        promise.reject(Unknown, "Another instance of SpeechService is already running")
       }
     } catch (e: Exception) {
       Log.e(TAG, "start: ", e)
       handleErrorEvent(e)
-      promise.reject(ErrorCode.Unknown, e.message)
+      promise.reject(Unknown, e.message)
     }
   }
 
@@ -86,18 +92,66 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
   }
 
   @ReactMethod
+  fun getAudioFile(fileId: String, configs: ReadableMap, promise: Promise) {
+    try {
+      val tmpFile = mTempFiles[fileId]
+      if (tmpFile?.isFile != true) {
+        promise.reject(FileMismatch, "File not found!")
+        return
+      }
+      val inputStream = FileInputStream(tmpFile)
+      val outPutFile = buildFile(fileId, "aac")
+      val outputStream = FileOutputStream(outPutFile)
+      val bufferSize = AudioRecord.getMinBufferSize(configs.getInt("sampleRate"), configs.getInt("channel"), AudioFormat.ENCODING_PCM_16BIT)
+      val data = ByteArray(bufferSize)
+      val encoderCallback: AACEncoder.Callback = object : AACEncoder.Callback() {
+        override fun onByte(data: ByteArray?) {
+          outputStream.write(data)
+        }
+      }
+      val encoder = AACEncoder(configs, encoderCallback)
+      while (inputStream.read(data) != -1) {
+        encoder.encodeData(data)
+      }
+      Log.d(TAG, "file path: ${outPutFile.absolutePath}")
+      Log.d(TAG, "file size:" + outputStream.channel.size())
+
+      val params = Arguments.createMap()
+      params.putDouble("size", outputStream.channel.size().toDouble())
+      params.putString("path", outPutFile.absolutePath)
+
+      inputStream.close()
+      outputStream.close()
+      mTempFiles.remove(fileId)
+      tmpFile.delete()
+
+      promise.resolve(params)
+    } catch (e: Exception) {
+      e.printStackTrace()
+      promise.reject(e)
+    }
+  }
+
+  @ReactMethod
   fun destroy(promise: Promise) {
-    stopVoiceRecorder()
-    // Stop Cloud Speech API
-    if (mSpeechService !== null) {
+    synchronized(mLock) {
+      stopVoiceRecorder()
+      // Stop Cloud Speech API
       mSpeechService?.removeListener(mSpeechServiceListener)
       mSpeechService = null
+      if (serviceConnected) {
+        reactApplicationContext.unbindService(mServiceConnection)
+        serviceConnected = false
+      }
+
+      mSpeechService?.stopSelf()
+      mSpeechService = null
+      if (mTempFiles.isNotEmpty()) {
+        mTempFiles.forEach(action = { it.value.delete() })
+        mTempFiles.clear()
+      }
+      promise.resolve(true)
     }
-    if (serviceConnected) {
-      reactApplicationContext.unbindService(mServiceConnection)
-      serviceConnected = false
-    }
-    promise.resolve(true)
   }
 
   private fun handleErrorEvent(throwable: Throwable) {
@@ -120,19 +174,19 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
 
   private val mVoiceCallback: VoiceRecorder.Callback = object : VoiceRecorder.Callback() {
     override fun onVoiceStart() {
-      Log.i(TAG, "onVoiceStart: ")
+      Log.d(TAG, "onVoiceStart: ")
       if (mSpeechService != null) {
         val params = Arguments.createMap()
         params.putInt("sampleRate", mVoiceRecorder!!.sampleRate)
         params.putInt("voiceRecorderState", mVoiceRecorder!!.state)
         sendJSEvent(reactApplicationContext, "onVoiceStart", params)
-        mSpeechService?.startRecognizing(mVoiceRecorder!!.sampleRate, apiKey, languageCode)
+        mSpeechService!!.startRecognizing(mVoiceRecorder!!.sampleRate, apiKey, languageCode)
 
       }
     }
 
     override fun onVoice(data: ByteArray?, size: Int) {
-      Log.i(TAG, "onVoice: ")
+      Log.d(TAG, "onVoice: ")
       if (mSpeechService != null) {
         val params = Arguments.createMap()
         params.putInt("size", size)
@@ -142,57 +196,66 @@ class GoogleCloudSpeechToTextModule(reactContext: ReactApplicationContext) : Rea
     }
 
     override fun onVoiceEnd() {
-      Log.i(TAG, "onVoiceEnd: ")
+      Log.d(TAG, "onVoiceEnd: ")
       val params = Arguments.createMap()
       sendJSEvent(reactApplicationContext, "onVoiceEnd", params)
       if (mSpeechService != null) {
-        mSpeechService?.finishRecognizing()
+        mSpeechService!!.finishRecognizing()
       }
     }
   }
 
   private val mServiceConnection: ServiceConnection = object : ServiceConnection {
     override fun onServiceConnected(componentName: ComponentName, binder: IBinder) {
-      Log.i(TAG, "ServiceConnected: ")
+      Log.d(TAG, "ServiceConnected: ")
       mSpeechService = SpeechService.from(binder)
       mSpeechService?.addListener(mSpeechServiceListener)
     }
 
     override fun onServiceDisconnected(componentName: ComponentName) {
-      Log.i(TAG, "ServiceDisconnected: ")
+      Log.d(TAG, "ServiceDisconnected: ")
       mSpeechService = null
     }
   }
 
-  private fun startVoiceRecorder(path: String?) {
-    Log.i(TAG, "StartVoiceRecorder: ")
+  private fun startVoiceRecorder(file: File?) {
+    Log.d(TAG, "StartVoiceRecorder: ")
     if (mVoiceRecorder != null) {
-      mVoiceRecorder?.stop()
+      mVoiceRecorder!!.stop()
     }
     mVoiceRecorder = VoiceRecorder(mVoiceCallback)
-    mVoiceRecorder?.start(path)
+    mVoiceRecorder!!.start(file)
   }
 
   private fun stopVoiceRecorder() {
     if (mVoiceRecorder != null) {
-      mVoiceRecorder?.stop()
+      mVoiceRecorder!!.stop()
       mVoiceRecorder = null
     }
   }
 
-  private val mSpeechServiceListener: SpeechService.Listener = SpeechService.Listener { text, isFinal ->
-    Log.i(TAG, "onSpeechRecognized: $text")
+  private val mSpeechServiceListener: SpeechService.Listener = object : SpeechService.Listener() {
+    override fun onSpeechRecognized(text: String?, isFinal: Boolean) {
+      Log.d(TAG, "onSpeechRecognized: $text")
 
-    val params = Arguments.createMap()
-    params.putString("transcript", text)
-    params.putBoolean("isFinal", isFinal)
-    if (isFinal) {
-      sendJSEvent(reactApplicationContext, "onSpeechRecognized", params)
-      mVoiceRecorder?.dismiss()
-    } else {
-      sendJSEvent(reactApplicationContext, "onSpeechRecognizing", params)
+      val params = Arguments.createMap()
+      params.putString("transcript", text)
+      params.putBoolean("isFinal", isFinal)
+      if (isFinal) {
+        sendJSEvent(reactApplicationContext, "onSpeechRecognized", params)
+        mVoiceRecorder?.dismiss()
+      } else {
+        sendJSEvent(reactApplicationContext, "onSpeechRecognizing", params)
+      }
     }
   }
 
+  private fun buildFile(fileId: String, ext: String): File {
+    return File(reactApplicationContext.cacheDir, "$fileId.$ext")
+  }
 
+  private fun deleteTempFile(tmpPath: String) {
+    val file = File(tmpPath)
+    file.delete()
+  }
 }

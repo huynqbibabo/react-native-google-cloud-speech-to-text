@@ -4,6 +4,7 @@ import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import com.reactnativegooglecloudspeechtotext.VoiceRecorder.Callback
+import java.io.File
 import java.io.FileOutputStream
 import kotlin.math.abs
 
@@ -63,8 +64,8 @@ class VoiceRecorder(private val mCallback: Callback) {
    *
    * The caller is responsible for calling [.stop] later.
    */
-  fun start(path: String?) {
-    if (!path.isNullOrEmpty()) mOutputStream = FileOutputStream(path)
+  fun start(file: File?) {
+    if (file?.isFile == true) mOutputStream = FileOutputStream(file)
     // Stop recording if it is currently ongoing.
     stop()
     // Try to create a new recording session.
@@ -167,7 +168,7 @@ class VoiceRecorder(private val mCallback: Callback) {
       while (true) {
         synchronized(mLock) {
           if (Thread.currentThread().isInterrupted) return
-          val size: Int = mAudioRecord!!.read(mBuffer, 0, mBuffer!!.size)
+          val size: Int = mAudioRecord!!.read(mBuffer!!, 0, mBuffer!!.size)
           mOutputStream?.write(mBuffer,0, size)
           val now: Long = System.currentTimeMillis()
           if (isHearingVoice(mBuffer, size)) {
