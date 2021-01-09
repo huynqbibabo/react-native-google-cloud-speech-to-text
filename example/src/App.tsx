@@ -15,7 +15,7 @@ import GoogleCloudSpeechToText, {
   SpeechStartEvent,
 } from 'react-native-google-cloud-speech-to-text';
 import { useEffect } from 'react';
-import { Player } from '@react-native-community/audio-toolkit';
+// import { Player } from '@react-native-community/audio-toolkit';
 
 const Separator = () => <View style={styles.separator} />;
 
@@ -102,17 +102,17 @@ export default function App() {
     }
   };
 
-  const playAudio = () => {
-    const player = new Player(file, {
-      autoDestroy: true,
-    }).prepare((err) => {
-      if (err) {
-        console.log(err);
-      } else {
-        player.play();
-      }
-    });
-  };
+  // const playAudio = () => {
+  //   const player = new Player(file, {
+  //     autoDestroy: true,
+  //   }).prepare((err) => {
+  //     if (err) {
+  //       console.log(err);
+  //     } else {
+  //       player.play();
+  //     }
+  //   });
+  // };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -131,6 +131,7 @@ export default function App() {
       </View>
       <Separator />
       <View>
+        <Text style={styles.title}>{file}</Text>
         <Button
           disabled={transcript === ''}
           title="Get file audio"
@@ -138,20 +139,20 @@ export default function App() {
           onPress={getAudioFile}
         />
       </View>
-      {file && (
-        <>
-          <Separator />
-          <Text style={styles.title}>file</Text>
-          <View>
-            <Button
-              disabled={transcript === ''}
-              title="Play"
-              color="#f194ff"
-              onPress={playAudio}
-            />
-          </View>
-        </>
-      )}
+      {/*{file && (*/}
+      {/*  <>*/}
+      {/*    <Separator />*/}
+      {/*    <Text style={styles.title}>file</Text>*/}
+      {/*    <View>*/}
+      {/*      <Button*/}
+      {/*        disabled={transcript === ''}*/}
+      {/*        title="Play"*/}
+      {/*        color="#f194ff"*/}
+      {/*        onPress={playAudio}*/}
+      {/*      />*/}
+      {/*    </View>*/}
+      {/*  </>*/}
+      {/*)}*/}
     </SafeAreaView>
   );
 }

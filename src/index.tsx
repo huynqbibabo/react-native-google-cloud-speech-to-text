@@ -116,15 +116,15 @@ class GCSpeechToText {
 
   /**
    * get recognized voice as aac file
-   * @param file id return from start()
+   * @param fileId
    * @param options
    */
   async getAudioFile(
-    file: string,
+    fileId: string,
     options?: OutputConfig
   ): Promise<OutputFile> {
     return await GoogleCloudSpeechToText.getAudioFile(
-      file,
+      fileId,
       Object.assign(
         { channel: ChannelCount.STEREO, sampleRate: 44100, bitrate: 96000 },
         options
