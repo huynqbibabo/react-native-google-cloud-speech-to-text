@@ -146,12 +146,14 @@ class SpeechService : Service() {
    */
   fun startRecognizing(sampleRate: Int, apiKey: String, languageCode: String) {
     isRecognizing = true
-    NameResolverRegistry.getDefaultRegistry().register(DnsNameResolverProvider())
-    val channel = OkHttpChannelProvider()
-      .builderForAddress(HOSTNAME, PORT)
-      .intercept(GoogleCredentialsInterceptor(apiKey))
-      .build()
-    mApi = SpeechGrpc.newStub(channel)
+    if (mApi == null) {
+      NameResolverRegistry.getDefaultRegistry().register(DnsNameResolverProvider())
+      val channel = OkHttpChannelProvider()
+        .builderForAddress(HOSTNAME, PORT)
+        .intercept(GoogleCredentialsInterceptor(apiKey))
+        .build()
+      mApi = SpeechGrpc.newStub(channel)
+    }
 
     // Configure the API
     mRequestObserver = mApi!!.streamingRecognize(mResponseObserver)
